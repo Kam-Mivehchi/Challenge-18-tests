@@ -26,6 +26,7 @@ let thought1;
 let thought2;
 let thought3;
 
+let reaction;
 
 describe("Module 18 Tests", () => {
    before(async () => {
@@ -140,19 +141,7 @@ describe("Module 18 Tests", () => {
 
          user1 = checkUser.body
       })
-      it("Get single User populates Friends", async () => {
-         const response = await request.get(`/api/users/${user1._id}`)
-         expect(response.statusCode).to.equal(200)
-         const checkUser = await request.get(`/api/users/${user1._id}`)
 
-         response.body.friends.forEach((user) => {
-            // Ensure that each user has the required keys
-            expect(user).to.include.all.keys("_id", "username", "thoughts", "email", "friends", "friendCount");
-         });
-
-
-         user1 = checkUser.body
-      })
    })
 
    describe("Thought routes (Create, Read, Update)", () => {
@@ -179,6 +168,21 @@ describe("Module 18 Tests", () => {
             expect(res1.statusCode).to.equal(200)
             expect(res2.statusCode).to.equal(200)
             expect(res3.statusCode).to.equal(200)
+
+            thought1 = res1;
+            thought2 = res2;
+            thought3 = res3;
+         } catch (error) {
+            console.error(error)
+         }
+      })
+      it("Pushes thoughts to user document", async () => {
+         try {
+            const user = await User.findOne({ _id: user1._id })
+
+
+
+            expect(user.thoughts).to.have.lengthOf(1)
          } catch (error) {
             console.error(error)
          }
@@ -235,6 +239,95 @@ describe("Module 18 Tests", () => {
             console.error(error)
 
          }
+      }),
+         it("Adds a reaction to a thought", async () => {
+            try {
+               const response = await request.post(`/api/thoughts/${thought1._id}/reactions`).send({
+                  "reactionBody": "totally agree",
+                  "username": "shelly"
+               })
+               expect(response.statusCode).to.equal(200)
+
+               reaction = response.body
+               const checkThought = await request.get(`/api/thoughts/${thought1._id}`)
+               expect(checkThought.body).to.include.all.keys("_id", "thoughtText", "username", "createdAt", "reactions", "reactionCount");
+               expect(checkThought.body.reactions).to.have.lengthOf(1)
+
+               thought1 = checkThought.body
+
+            } catch (error) {
+               console.error(error)
+
+            }
+         })
+
+   })
+   describe("Populating Tests", () => {
+      it("Get single User populates Friends", async () => {
+         const response = await request.get(`/api/users/${user1._id}`)
+         expect(response.statusCode).to.equal(200)
+         const checkUser = await request.get(`/api/users/${user1._id}`)
+
+         response.body.friends.forEach((user) => {
+            // Ensure that each user has the required keys
+            expect(user).to.include.all.keys("_id", "username", "thoughts", "email", "friends", "friendCount");
+         });
+         user1 = checkUser.body
+      })
+      it("Get single User populates Thoughts", async () => {
+         const response = await request.get(`/api/users/${user1._id}`)
+         expect(response.statusCode).to.equal(200)
+         const checkUser = await request.get(`/api/users/${user1._id}`)
+
+         response.body.thoughts.forEach((thought) => {
+            // Ensure that each thought has the required keys
+            expect(thought).to.include.all.keys("_id", "thoughtText", "username", "createdAt", "reactions", "reactionCount");
+         });
+
+
+         user1 = checkUser.body
+      })
+   })
+   describe("Delete Routes", () => {
+      it("Deletes Reaction", async () => {
+         const response = await request.delete(`/api/${thought1._id}/thoughts/${reaction.reactionId}`)
+         expect(response.statusCode).to.equal(200)
+
+
+      })
+      it("Removes Friend", async () => {
+         const response = await request.delete(`/api/users/${user1._id}/friends/${user2._id}`)
+         expect(response.statusCode).to.equal(200)
+         const checkUser = await request.get(`/api/users/${user1._id}`)
+
+         expect(checkUser.body.friends).to.be.lengthOf(0)
+
+
+
+
+      })
+      it("Deletes User", async () => {
+         const response = await request.delete(`/api/users/${user2._id}`)
+         expect(response.statusCode).to.equal(200)
+         const checkUser = await request.get(`/api/users/${user2._id}`)
+         expect(checkUser.statusCode).to.not.equal(200)
+      })
+
+      it("Deletes Thought", async () => {
+         const response = await request.delete(`/api/thoughts/${thought3._id}`)
+         expect(response.statusCode).to.equal(200)
+         const checkThought = await request.get(`/api/users/${thought3._id}`)
+
+         expect(checkThought.statusCode).to.not.equal(200)
+
+
+      })
+      it("Remove's associated thoughts when deleting user(BONUS)", async () => {
+         const response = await request.delete(`/api/users/${user3._id}`)
+         expect(response.statusCode).to.equal(200)
+         const checkThought = await request.get(`/api/thoughts/${thought1._id}`)
+
+         expect(checkThought.statusCode).to.equal(404)
       })
    })
 })
